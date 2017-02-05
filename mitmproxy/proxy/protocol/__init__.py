@@ -38,11 +38,11 @@ from .websocket import WebSocketLayer
 from .rawtcp import RawTCPLayer
 from .tls import TlsClientHello
 from .tls import TlsLayer
-from .tls import is_tls_record_magic
+from .tls import is_sslv2_record_magic, is_tls_record_magic
 
 __all__ = [
     "Layer", "ServerConnectionMixin",
-    "TlsLayer", "is_tls_record_magic", "TlsClientHello",
+    "TlsLayer", "is_sslv2_record_magic", "is_tls_record_magic", "TlsClientHello",
     "UpstreamConnectLayer",
     "HttpLayer",
     "Http1Layer",

@@ -217,6 +217,21 @@ def is_tls_record_magic(d):
         0x0 <= d[2] <= 0x03
     )
 
+def is_sslv2_record_magic(d):
+    """
+    Returns:
+        True, if the passed bytes indicate an SSLv2 client which wants to
+        continue the handshake using TLS 1.0. False, otherwise.
+    """
+    d = d[:5]
+
+    return (
+        len(d) == 5 and
+        d[2] == 0x01 and
+        d[3] == 0x03 and
+        d[4] == 0x01
+    )
+
 
 def get_client_hello(client_conn):
     """
@@ -228,6 +243,15 @@ def get_client_hello(client_conn):
     Returns:
         The raw handshake packet bytes, without TLS record header(s).
     """
+    record_header = client_conn.rfile.peek(5)
+    if is_tls_record_magic(record_header):
+        return get_client_hello_tls(client_conn)
+    if is_sslv2_record_magic(record_header):
+        return get_client_hello_sslv2(client_conn)
+    raise exceptions.TlsProtocolException('Expected TLS record, got "%s" instead.' % record_header)
+
+
+def get_client_hello_tls(client_conn):
     client_hello = b""
     client_hello_size = 1
     offset = 0
@@ -243,6 +267,23 @@ def get_client_hello(client_conn):
         offset += record_size
         client_hello_size = struct.unpack("!I", b'\x00' + client_hello[1:4])[0] + 4
     return client_hello
+
+
+def get_client_hello_sslv2(client_conn):
+    """
+    Since nothing else supports SSLv2, just pretend the client sent a TLS 1.0
+    ClientHello for example.com. As long as the rest of the handshake proceeds
+    using a supported version of TLS, everything else will work happily and no
+    one will be the wiser :)
+    """
+    return bytes.fromhex(
+        "010000c7"
+        "03033b70638d2523e1cba15f8364868295305e9c52aceabda4b5147210abc783e6e1000022c02bc02fc02cc030"
+        "cca9cca8cc14cc13c009c013c00ac014009c009d002f0035000a0100006cff0100010000000010000e00000b65"
+        "78616d706c652e636f6d0017000000230000000d00120010060106030501050304010403020102030005000501"
+        "00000000001200000010000e000c02683208687474702f312e3175500000000b00020100000a00080006001d00"
+        "170018"
+    )
 
 
 class TlsClientHello:

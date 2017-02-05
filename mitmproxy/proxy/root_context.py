@@ -42,10 +42,11 @@ class RootContext:
 
     def _next_layer(self, top_layer):
         try:
-            d = top_layer.client_conn.rfile.peek(3)
+            d = top_layer.client_conn.rfile.peek(5)
         except exceptions.TcpException as e:
             raise exceptions.ProtocolException(str(e))
         client_tls = protocol.is_tls_record_magic(d)
+        client_sslv2 = protocol.is_sslv2_record_magic(d)
 
         # 1. check for --ignore
         if self.config.check_ignore:
@@ -80,8 +81,8 @@ class RootContext:
             if isinstance(top_layer.ctx, modes.HttpUpstreamProxy):
                 return protocol.Http1Layer(top_layer, http.HTTPMode.upstream)
 
-        # 4. Check for other TLS cases (e.g. after CONNECT).
-        if client_tls:
+        # 4. Check for other TLS/SSL cases (e.g. after CONNECT).
+        if client_tls or client_sslv2:
             return protocol.TlsLayer(top_layer, True, True)
 
         # 4. Check for --tcp
